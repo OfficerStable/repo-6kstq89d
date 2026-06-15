@@ -102,7 +102,14 @@ function adjustRequirementsForMac(text) {
     .join('\n');
 }
 
-// Download every backend dependency as a wheel/sdist into resources/wheelhouse.
+// Build a wheelhouse of pre-built wheels for every backend dependency under
+// resources/wheelhouse. We use `pip wheel` (not `pip download`) on purpose:
+// it produces a wheel for EVERY package, building any source-only/sdist
+// distributions here on the build machine (which has a compiler + internet for
+// build deps such as cython). The end user's first launch then installs fully
+// offline with `--no-index --find-links wheelhouse` and never compiles
+// anything, so no C toolchain or build-time dependency is required on their
+// machine.
 function stageWheelhouse() {
   const dest = path.join(resourcesDir, 'wheelhouse');
   let requirements = path.join(repoRoot, 'backend', 'requirements.txt');
@@ -120,7 +127,7 @@ function stageWheelhouse() {
     requirements = macReq;
     // Keep the bundled backend's requirements.txt in sync so the first-launch
     // offline install (`uv pip install --no-index --find-links wheelhouse`)
-    // resolves against the macOS wheels we are about to download.
+    // resolves against the macOS wheels we are about to build.
     const stagedReq = path.join(resourcesDir, 'backend', 'requirements.txt');
     if (fs.existsSync(stagedReq)) {
       fs.writeFileSync(stagedReq, adjusted);
@@ -130,9 +137,17 @@ function stageWheelhouse() {
     extraArgs.length = 0;
   }
 
-  run(PIP_PYTHON, ['-m', 'pip', 'download', '-r', requirements, '-d', dest, ...extraArgs]);
-  const count = fs.readdirSync(dest).length;
-  console.log(`Staged wheelhouse (${count} files) ->`, dest);
+  run(PIP_PYTHON, ['-m', 'pip', 'wheel', '-r', requirements, '-w', dest, ...extraArgs]);
+  const files = fs.readdirSync(dest);
+  const sdists = files.filter((f) => f.endsWith('.tar.gz') || f.endsWith('.zip'));
+  if (sdists.length) {
+    // Every entry must be a pre-built wheel; an sdist here means the end user
+    // would have to compile it offline (which fails). Fail the build loudly.
+    throw new Error(
+      `Wheelhouse contains non-wheel distributions (the end user would compile these offline): ${sdists.join(', ')}`
+    );
+  }
+  console.log(`Staged wheelhouse (${files.length} wheels) ->`, dest);
 }
 
 function main() {

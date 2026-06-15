@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   windows:
-    if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
     runs-on: windows-latest
     timeout-minutes: 90
     env:
@@ -162,3 +162,5 @@ jobs:
           retention-days: 14
 
 # build trigger rev2: fix Linux .deb homepage + macOS torch (+cpu) pins
+
+# build trigger rev3: pure-wheel wheelhouse (pip wheel) so end users never compile (sqlalchemy/cython fix)
