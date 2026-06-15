@@ -5,6 +5,7 @@
   "description": "Cross-platform desktop app for Neo4j LLM Graph Builder (bilingual zh/en).",
   "author": "neo4j-labs",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/neo4j-labs/llm-graph-builder",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {

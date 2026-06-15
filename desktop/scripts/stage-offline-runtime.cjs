@@ -27,6 +27,7 @@ const desktopDir = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(desktopDir, '..');
 const resourcesDir = path.join(desktopDir, 'resources');
 const IS_WIN = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
 
 const PY_VERSION = process.env.LGB_PYTHON_VERSION || '3.12';
 const UV = process.env.LGB_UV || 'uv';
@@ -82,25 +83,54 @@ function stagePython() {
   console.log('Staged standalone Python ->', dest);
 }
 
+// macOS has no `+cpu` local-version torch wheels (those exist only for
+// Linux/Windows on download.pytorch.org). The plain macOS wheels on PyPI are
+// already CPU/MPS builds, so drop the `+cpu` suffix and the pytorch CPU index
+// when targeting macOS.
+function adjustRequirementsForMac(text) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => {
+      const m = line.match(/^(torch|torchvision|torchaudio)==([0-9][0-9.]*)\+cpu\s*$/);
+      if (m) return `${m[1]}==${m[2]}`;
+      if (/^\s*--extra-index-url\s+https:\/\/download\.pytorch\.org\/whl\/cpu/.test(line)) {
+        return null;
+      }
+      return line;
+    })
+    .filter((line) => line !== null)
+    .join('\n');
+}
+
 // Download every backend dependency as a wheel/sdist into resources/wheelhouse.
 function stageWheelhouse() {
   const dest = path.join(resourcesDir, 'wheelhouse');
-  const requirements = path.join(repoRoot, 'backend', 'requirements.txt');
+  let requirements = path.join(repoRoot, 'backend', 'requirements.txt');
   fs.mkdirSync(dest, { recursive: true });
-  run(PIP_PYTHON, [
-    '-m',
-    'pip',
-    'download',
-    '-r',
-    requirements,
-    '-d',
-    dest,
-    // The torch CPU wheels live on a dedicated index referenced by
-    // requirements.txt; pass it explicitly too in case the host pip ignores
-    // the in-file directive.
-    '--extra-index-url',
-    'https://download.pytorch.org/whl/cpu',
-  ]);
+
+  // The torch CPU wheels live on a dedicated index referenced by
+  // requirements.txt; pass it explicitly too in case the host pip ignores the
+  // in-file directive.
+  const extraArgs = ['--extra-index-url', 'https://download.pytorch.org/whl/cpu'];
+
+  if (IS_MAC) {
+    const adjusted = adjustRequirementsForMac(fs.readFileSync(requirements, 'utf8'));
+    const macReq = path.join(os.tmpdir(), 'lgb-requirements-macos.txt');
+    fs.writeFileSync(macReq, adjusted);
+    requirements = macReq;
+    // Keep the bundled backend's requirements.txt in sync so the first-launch
+    // offline install (`uv pip install --no-index --find-links wheelhouse`)
+    // resolves against the macOS wheels we are about to download.
+    const stagedReq = path.join(resourcesDir, 'backend', 'requirements.txt');
+    if (fs.existsSync(stagedReq)) {
+      fs.writeFileSync(stagedReq, adjusted);
+      console.log('Rewrote macOS requirements (stripped +cpu torch pins) ->', stagedReq);
+    }
+    // No pytorch CPU index on macOS; the plain wheels come from PyPI.
+    extraArgs.length = 0;
+  }
+
+  run(PIP_PYTHON, ['-m', 'pip', 'download', '-r', requirements, '-d', dest, ...extraArgs]);
   const count = fs.readdirSync(dest).length;
   console.log(`Staged wheelhouse (${count} files) ->`, dest);
 }

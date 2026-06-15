@@ -160,3 +160,5 @@ jobs:
           path: desktop/dist-app/*.dmg
           if-no-files-found: error
           retention-days: 14
+
+# build trigger rev2: fix Linux .deb homepage + macOS torch (+cpu) pins
