@@ -1,0 +1,29 @@
+{
+  "name": "llm-graph-builder-desktop",
+  "productName": "LLM Graph Builder",
+  "version": "1.0.0",
+  "description": "Cross-platform desktop app for Neo4j LLM Graph Builder (bilingual zh/en).",
+  "author": "neo4j-labs",
+  "license": "Apache-2.0",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "ELECTRON_DEV=1 electron .",
+    "prepare:resources": "node scripts/prepare-resources.cjs",
+    "stage:offline": "node scripts/stage-offline-runtime.cjs",
+    "build:frontend": "node scripts/build-frontend.cjs",
+    "pack": "npm run build:frontend && npm run prepare:resources && electron-builder --dir",
+    "dist": "npm run build:frontend && npm run prepare:resources && npm run stage:offline && electron-builder",
+    "dist:linux": "npm run build:frontend && npm run prepare:resources && npm run stage:offline && electron-builder --linux",
+    "dist:win": "npm run build:frontend && npm run prepare:resources && npm run stage:offline && electron-builder --win",
+    "dist:mac": "npm run build:frontend && npm run prepare:resources && npm run stage:offline && electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "get-port": "^5.1.1"
+  }
+}

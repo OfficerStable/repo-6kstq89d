@@ -1,0 +1,53 @@
+appId: io.neo4j.llmgraphbuilder.desktop
+productName: LLM Graph Builder
+copyright: Copyright © Neo4j
+
+directories:
+  output: dist-app
+  buildResources: build
+
+files:
+  - electron/**/*
+  - package.json
+
+# Backend source, built frontend, the uv bootstrap binary, a relocatable
+# standalone CPython and an offline wheelhouse are shipped as unpacked resources
+# (the backend must run from a real on-disk, writable copy; the runtime is
+# bootstrapped offline from these on first launch).
+extraResources:
+  - from: resources/frontend
+    to: frontend
+  - from: resources/backend
+    to: backend
+  - from: resources/bin
+    to: bin
+  - from: resources/python
+    to: python
+  - from: resources/wheelhouse
+    to: wheelhouse
+
+asar: true
+
+linux:
+  category: Development
+  icon: build/icon.png
+  maintainer: neo4j-labs <noreply@neo4j.com>
+  target:
+    - AppImage
+    - deb
+
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.icns
+  target:
+    - dmg

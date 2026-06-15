@@ -1,0 +1,162 @@
+name: Build Desktop App (offline installers)
+
+# Builds the one-click, fully-offline desktop installers for LLM Graph Builder.
+# Each installer bundles its own runtime (a standalone CPython + every backend
+# dependency as a local wheelhouse), so the end user needs NO internet to set up
+# the app on first launch.
+#
+# Run it from the GitHub UI: Actions -> "Build Desktop App (offline installers)"
+# -> Run workflow -> pick a platform. The finished installer is uploaded as a
+# downloadable artifact at the bottom of the run page.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Which installer(s) to build'
+        type: choice
+        default: windows
+        options:
+          - windows
+          - linux
+          - mac
+          - all
+  # Also build Windows automatically whenever this workflow file itself changes
+  # on main (used to bootstrap the very first build). Normal code commits do not
+  # touch this file, so they won't trigger a build.
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-desktop.yml'
+
+concurrency:
+  group: build-desktop-${{ github.ref }}-${{ github.event.inputs.platform }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      # Never try to code-sign in CI (no certificate available).
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install yarn (classic)
+        run: npm install -g yarn
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install
+
+      - name: Build offline Windows installer (.exe)
+        working-directory: desktop
+        run: npm run dist:win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: llm-graph-builder-windows-exe
+          path: |
+            desktop/dist-app/*.exe
+            desktop/dist-app/*.exe.blockmap
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install yarn (classic)
+        run: npm install -g yarn
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install
+
+      - name: Build offline Linux installer (AppImage)
+        working-directory: desktop
+        run: npm run dist:linux
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: llm-graph-builder-linux-appimage
+          path: |
+            desktop/dist-app/*.AppImage
+            desktop/dist-app/*.deb
+          if-no-files-found: error
+          retention-days: 14
+
+  mac:
+    if: ${{ github.event.inputs.platform == 'mac' || github.event.inputs.platform == 'all' }}
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install yarn (classic)
+        run: npm install -g yarn
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install
+
+      - name: Build offline macOS installer (.dmg)
+        working-directory: desktop
+        run: npm run dist:mac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: llm-graph-builder-macos-dmg
+          path: desktop/dist-app/*.dmg
+          if-no-files-found: error
+          retention-days: 14

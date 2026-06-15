@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Graph Builder</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+          'Microsoft YaHei', Roboto, Helvetica, Arial, sans-serif;
+        background: linear-gradient(135deg, #0b1020 0%, #18233f 100%);
+        color: #e9eefb;
+      }
+      .card {
+        width: 520px;
+        max-width: 90vw;
+        padding: 40px 44px;
+        text-align: center;
+      }
+      .logo {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 18px;
+        border-radius: 18px;
+        background: #5b7cfa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 34px;
+        font-weight: 700;
+        box-shadow: 0 8px 30px rgba(91, 124, 250, 0.45);
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+        font-weight: 600;
+      }
+      .subtitle {
+        font-size: 13px;
+        opacity: 0.6;
+        margin-bottom: 28px;
+      }
+      .status {
+        font-size: 15px;
+        min-height: 22px;
+        margin-bottom: 6px;
+      }
+      .status-en {
+        font-size: 12px;
+        opacity: 0.55;
+        min-height: 16px;
+        margin-bottom: 18px;
+      }
+      .detail {
+        font-size: 11px;
+        opacity: 0.4;
+        min-height: 16px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .bar {
+        height: 4px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+        margin-top: 22px;
+        position: relative;
+      }
+      .bar::after {
+        content: '';
+        position: absolute;
+        left: -40%;
+        width: 40%;
+        height: 100%;
+        background: #5b7cfa;
+        border-radius: 4px;
+        animation: slide 1.3s infinite ease-in-out;
+      }
+      @keyframes slide {
+        0% {
+          left: -40%;
+        }
+        100% {
+          left: 100%;
+        }
+      }
+      .error {
+        color: #ff8a8a;
+        font-size: 13px;
+        margin-top: 18px;
+        white-space: pre-wrap;
+        text-align: left;
+        max-height: 160px;
+        overflow: auto;
+        display: none;
+      }
+      .retry {
+        display: none;
+        margin-top: 16px;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 8px;
+        background: #5b7cfa;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">KG</div>
+      <h1>LLM Graph Builder</h1>
+      <div class="subtitle">知识图谱构建器 · Knowledge Graph Builder</div>
+      <div class="status" id="status">正在启动…</div>
+      <div class="status-en" id="status-en">Starting…</div>
+      <div class="detail" id="detail"></div>
+      <div class="bar" id="bar"></div>
+      <div class="error" id="error"></div>
+      <button class="retry" id="retry">重试 / Retry</button>
+    </div>
+    <script>
+      const STAGES = {
+        start: { zh: '正在启动…', en: 'Starting…' },
+        copy: { zh: '正在准备后端文件…', en: 'Preparing backend files…' },
+        install: { zh: '正在配置运行环境（首次启动需要几分钟）…', en: 'Setting up runtime (first launch only, a few minutes)…' },
+        'install-detail': null,
+        starting: { zh: '正在启动后端服务…', en: 'Starting backend service…' },
+        waiting: { zh: '正在等待服务就绪…', en: 'Waiting for service to be ready…' },
+        ready: { zh: '准备就绪，正在打开界面…', en: 'Ready, opening the app…' },
+      };
+      const statusEl = document.getElementById('status');
+      const statusEnEl = document.getElementById('status-en');
+      const detailEl = document.getElementById('detail');
+      const errorEl = document.getElementById('error');
+      const retryEl = document.getElementById('retry');
+      const barEl = document.getElementById('bar');
+
+      if (window.electronAPI) {
+        window.electronAPI.onSetupProgress((payload) => {
+          const { stage, message } = payload || {};
+          if (stage === 'install-detail') {
+            detailEl.textContent = message || '';
+            return;
+          }
+          const s = STAGES[stage];
+          if (s) {
+            statusEl.textContent = s.zh;
+            statusEnEl.textContent = s.en;
+          } else if (message) {
+            statusEl.textContent = message;
+          }
+        });
+        window.electronAPI.onSetupError((payload) => {
+          barEl.style.display = 'none';
+          errorEl.style.display = 'block';
+          retryEl.style.display = 'inline-block';
+          statusEl.textContent = '启动失败';
+          statusEnEl.textContent = 'Startup failed';
+          errorEl.textContent = (payload && payload.message) || 'Unknown error';
+        });
+        retryEl.addEventListener('click', () => {
+          errorEl.style.display = 'none';
+          retryEl.style.display = 'none';
+          barEl.style.display = 'block';
+          statusEl.textContent = '正在重试…';
+          statusEnEl.textContent = 'Retrying…';
+          window.electronAPI.retrySetup();
+        });
+      }
+    </script>
+  </body>
+</html>
