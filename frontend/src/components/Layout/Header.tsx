@@ -7,6 +7,7 @@ import {
   TrashIconOutline,
   ArrowLeftIconOutline,
   ArrowDownTrayIconOutline,
+  Cog8ToothIconOutline,
 } from '@neo4j-ndl/react/icons';
 import { Button, SpotlightTarget, TextLink, Typography, useSpotlightContext, Logo } from '@neo4j-ndl/react';
 import { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
@@ -20,6 +21,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useMessageContext } from '../../context/UserMessages';
 import { RiChatSettingsLine } from 'react-icons/ri';
 import ChatModeToggle from '../ChatBot/ChatModeToggle';
+import SettingsModal from '../Popups/SettingsModal/SettingsModal';
 import { HeaderProp } from '../../types';
 import { downloadClickHandler, getIsLoading } from '../../utils/Utils';
 import Profile from '../User/Profile';
@@ -49,6 +51,7 @@ const Header: React.FC<HeaderProp> = ({ chatOnly, deleteOnClick, setOpenConnecti
   const chatAnchor = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
   const [showChatModeOption, setShowChatModeOption] = useState<boolean>(false);
+  const [openSettings, setOpenSettings] = useState<boolean>(false);
   const { setIsOpen } = useSpotlightContext();
   const isFirstTimeUser = useMemo(() => {
     return localStorage.getItem('neo4j.connection') === null;
@@ -129,6 +132,16 @@ const Header: React.FC<HeaderProp> = ({ chatOnly, deleteOnClick, setOpenConnecti
                     <CodeBracketSquareIconOutline />
                   </IconButtonWithToolTip>
                   <LanguageToggle placement='left' />
+                  <IconButtonWithToolTip
+                    label={tr('settings.tooltip')}
+                    text={tr('settings.tooltip')}
+                    clean
+                    size='large'
+                    placement='left'
+                    onClick={() => setOpenSettings(true)}
+                  >
+                    <Cog8ToothIconOutline />
+                  </IconButtonWithToolTip>
                   <IconButtonWithToolTip
                     label={tooltips.theme}
                     text={tooltips.theme}
@@ -295,6 +308,7 @@ const Header: React.FC<HeaderProp> = ({ chatOnly, deleteOnClick, setOpenConnecti
         menuAnchor={chatAnchor}
         isRoot={false}
       />
+      <SettingsModal open={openSettings} onClose={() => setOpenSettings(false)} />
     </>
   );
 };

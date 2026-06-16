@@ -164,3 +164,5 @@ jobs:
 # build trigger rev2: fix Linux .deb homepage + macOS torch (+cpu) pins
 
 # build trigger rev3: pure-wheel wheelhouse (pip wheel) so end users never compile (sqlalchemy/cython fix)
+
+# build trigger rev4: in-app System Settings panel (configure LLM models + system options from the GUI)

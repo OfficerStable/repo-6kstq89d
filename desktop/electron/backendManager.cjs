@@ -251,6 +251,9 @@ function startBackend(port, onLog) {
     // Keep model/tokenizer caches inside userData so they persist & are writable.
     HF_HOME: path.join(app.getPath('userData'), 'hf-cache'),
     NLTK_DATA: path.join(app.getPath('userData'), 'nltk_data'),
+    // Persist GUI-configured settings (LLM providers / system options) in
+    // userData so they survive app upgrades and reinstalls.
+    LGB_SETTINGS_PATH: process.env.LGB_SETTINGS_PATH || path.join(app.getPath('userData'), 'app_settings.json'),
   };
   fs.mkdirSync(env.HF_HOME, { recursive: true });
   fs.mkdirSync(env.NLTK_DATA, { recursive: true });

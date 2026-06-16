@@ -20,7 +20,20 @@ export const APP_SOURCES =
     ? (import.meta.env.VITE_REACT_APP_SOURCES?.split(',') as string[])
     : ['s3', 'local', 'wiki', 'youtube', 'web'];
 
-export const llms = import.meta.env?.VITE_LLM_MODELS?.trim()
+// Models the user configured from the in-app system settings panel take
+// precedence so the dropdown shows exactly what they set up (desktop app).
+const configuredLlms = ((): string[] | null => {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('lgb.llms') : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) && parsed.length ? (parsed as string[]) : null;
+  } catch {
+    return null;
+  }
+})();
+
+export const llms = configuredLlms ??
+  (import.meta.env?.VITE_LLM_MODELS?.trim()
   ? (import.meta.env.VITE_LLM_MODELS.split(',') as string[])
   : [
       'gemini_3.5_flash',
@@ -38,7 +51,7 @@ export const llms = import.meta.env?.VITE_LLM_MODELS?.trim()
       'fireworks_gpt_oss',
       'fireworks_kimi_k2p6',
       'fireworks_glm_5.1',
-    ];
+    ]);
 
 export const prodllms = import.meta.env.VITE_LLM_MODELS_PROD?.trim()
   ? (import.meta.env.VITE_LLM_MODELS_PROD.split(',') as string[])

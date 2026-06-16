@@ -1,4 +1,7 @@
 .DS_Store
+# In-app settings persisted by the desktop app (may contain API keys)
+app_settings.json
+backend/app_settings.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

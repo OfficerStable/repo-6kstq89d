@@ -43,10 +43,15 @@ from src.post_processing import create_entity_embedding, create_vector_fulltext_
 from src.ragas_eval import get_additional_metrics, get_ragas_metrics
 from src.shared.common_fn import formatted_time, get_value_from_env, get_remaining_token_limits, get_user_embedding_model, change_user_embedding_model
 from src.shared.llm_graph_builder_exception import LLMGraphBuilderException
+from src import app_settings
 from Secweb.XContentTypeOptions import XContentTypeOptions
 from Secweb.XFrameOptions import XFrame
+from pydantic import BaseModel
 
 load_dotenv(override=True)
+# Apply any settings the user saved from the in-app settings panel so the
+# backend reflects GUI-configured LLM providers / system options at startup.
+app_settings.apply_saved_settings()
 
 logger = CustomLogger()
 CHUNK_DIR = os.path.join(os.path.dirname(__file__), "chunks")
@@ -1246,6 +1251,47 @@ async def change_embedding_model(
         return create_api_response("Failed", message=f"An unexpected error occurred: {str(e)}", error=str(e))
     finally:
         gc.collect()
+
+class AppSettingsPayload(BaseModel):
+    llm_models: List[dict] = []
+    env: dict = {}
+
+
+@app.get("/app_settings")
+async def get_app_settings():
+    """Return the settings catalog plus the user's currently saved configuration.
+
+    Used by the desktop app's system settings panel to render forms and show
+    which LLM models are configured.
+    """
+    try:
+        return create_api_response("Success", data=app_settings.get_state())
+    except Exception as e:
+        error_message = str(e)
+        logging.exception(f"Exception in get_app_settings: {error_message}")
+        return create_api_response("Failed", message="Unable to load settings", error=error_message)
+
+
+@app.post("/app_settings")
+async def update_app_settings(payload: AppSettingsPayload):
+    """Persist the user's settings and apply them to the running backend."""
+    try:
+        data = {"llm_models": payload.llm_models, "env": payload.env}
+        saved = app_settings.save_settings(data)
+        app_settings.apply_settings(saved)
+        return create_api_response(
+            "Success",
+            message="Settings saved",
+            data={
+                "settings": saved,
+                "configured_models": app_settings.configured_models(saved),
+            },
+        )
+    except Exception as e:
+        error_message = str(e)
+        logging.exception(f"Exception in update_app_settings: {error_message}")
+        return create_api_response("Failed", message="Unable to save settings", error=error_message)
+
 
 if __name__ == "__main__":
     uvicorn.run(app,timeout_keep_alive=150)
